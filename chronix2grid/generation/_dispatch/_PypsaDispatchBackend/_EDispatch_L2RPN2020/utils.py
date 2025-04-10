@@ -414,7 +414,7 @@ def run_opf(net,
     
     # ++  ++  ++  ++
     # Run Linear OPF
-    status, termination_condition = net.lopf(net.snapshots, **kwargs)
+    status, termination_condition = net.optimize(net.snapshots, **kwargs)
     if status != 'ok':
         print('** OPF failed to find an optimal solution **')
         return None, termination_condition
