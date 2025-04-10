@@ -225,7 +225,7 @@ def Ramps_Pmax_Pmin_APrioriCheckers(env118_withoutchron,Capacity, chronics_path_
 
     Ramps_gen_df=pd.DataFrame({'name':env118_withoutchron.name_gen,'type':env118_withoutchron.gen_type,
                                'rampUp':env118_withoutchron.gen_max_ramp_up,'rampDown':env118_withoutchron.gen_max_ramp_down})
-    Ramps_genType_df=Ramps_gen_df.groupby(['type'])['rampUp','rampDown'].agg('sum')
+    Ramps_genType_df=Ramps_gen_df.groupby(['type'])[['rampUp','rampDown']].agg('sum')
     Ramps_genType_df
 
 
