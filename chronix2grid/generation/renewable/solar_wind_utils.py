@@ -46,7 +46,7 @@ def compute_wind_series(prng, locations, Pmax, long_noise, medium_noise,
     t = np.linspace(0, params['T'], Nt_inter, endpoint=True)
     start_min = int(
         pd.Timedelta(params['start_date'] - pd.to_datetime('2018-01-01', format='%Y-%m-%d')).total_seconds() // 60)
-    seasonal_pattern = np.cos((2 * np.pi / (365 * 24 * 60)) * (t - 30 * 24 * 60 - start_min))
+    seasonal_pattern = np.cos((2 * np.pi / (365 * 24 * 60)) * (t - 30 * 24 * 60 + start_min))
 
     # Combine signals
     std_short_wind_noise = float(params['std_short_wind_noise'])
