@@ -93,8 +93,8 @@ def compute_solar_series(prng, locations, Pmax, solar_noise, params,
         mean_solar_pattern = 0.75
         
     signal = solar_pattern * (mean_solar_pattern + std_solar_noise * final_noise)
-    #signal += prng.uniform(0, smoothdist/Pmax, signal.shape) #to be revised: since smmothdist/PMax is very small, the added noise compared to the previous sinal was unsignificant
-    #signal += np.random.uniform(0, smoothdist / Pmax, signal.shape) #older version - to be removed
+    signal += prng.uniform(0, smoothdist, signal.shape) #to be revised: since smmothdist/PMax is very small, the added noise compared to the previous sinal was unsignificant
+    #signal += np.random.uniform(0, smoothdist, signal.shape) #older version - to be removed
     # signal[signal > 1] = 1
     signal[signal < tol] = 0.
     signal = smooth(signal)
@@ -187,6 +187,9 @@ def compute_solar_pattern(params, solar_pattern, tol=0.0):
     if "force_solar_zero" in params:
         # another heuristic to cap the solar at 0.0 at "night"
         # when the solar is at 5% of its max value, then 1h after it it should be 0.
+
+        dts = [params['start_date'] + i * pd.Timedelta(minutes=params['dt']) for i in range(t_inter.shape[0])]
+        dts_hours = np.array([el.hour for el in dts])
         threshold_zero = output.max() * 0.05
         max_hour_seen_non_zero = np.max(dts_hours[output >= threshold_zero])
         max_hour_seen_non_zero += int(params["force_solar_zero"])
