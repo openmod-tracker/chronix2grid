@@ -10,7 +10,6 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
-import plotly.express as px
 
 from .. import generation_utils as utils
 import chronix2grid.constants as cst
