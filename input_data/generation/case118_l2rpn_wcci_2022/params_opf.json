@@ -6,7 +6,7 @@
   "dispatch_by_carrier": false,
   "ramp_mode": "hard",
   "pyomo": false,
-  "solver_name": "cbc",
+  "solver_name": "highs",
   "slack_name": "gen_68_37",
   "slack_pmin": 40.0,
   "slack_pmax": 300.0,
