@@ -23,26 +23,39 @@ See the documentation at https://chronix2grid.readthedocs.io/en/latest/
 ## Installation
 
 ### Requirements:
-*   Python >= 3.6
+*   Python >= 3.9
 
-#### (Optional, recommended) Step 1: Create a virtual environment
-```commandline
+#### Step 1: Create a virtual environment
+With a regular environment:
+```comandline
 pip3 install -U virtualenv
 python3 -m virtualenv venv_chronix2grid
 ```
 
-#### Step 2 (first option): Install from pypi
+If you have anaconda:
+```commandline
+conda create -n venv_chronix2grid python=3.9
+conda activate venv_chronix2grid
+```
+
+#### Step 2 (first option): Install from source
+```commandline
+mkdir c2g_test
+cd c2g_test
+git clone https://github.com/Grid2op/chronix2grid.git
+cd chronix2grid
+pip install -U .
+```
+
+#### Step 2 (second option): Install from pypi
 ```commandline
 source venv_chronix2grid/bin/activate
 pip install Chronix2Grid
 ```
 
-#### Step 2 (second option): Install from source
+#### Step 3: Install library requirements
 ```commandline
-source venv_chronix2grid/bin/activate
-git clone https://github.com/mjothy/ChroniX2Grid.git
-cd ChroniX2Grid/
-pip install -U .
+pip install -r requirements_test.txt
 ```
 
 ### Additional install required for dispatch
@@ -50,9 +63,9 @@ pip install -U .
 A backend for dispatch has been implemented with PyPSA 
 
  ```commandline
-pip install pypsa==0.17.0
+pip install -U pypsa
 ```
-You might need to install cbc solver as well that pypsa will call: https://projects.coin-or.org/Cbc
+Note: Currently, HIGHS is used as the Optimal Power Flow (OPF) solver due to its fast computation. If you prefer the CBC solver, please install it from: [https://projects.coin-or.org/Cbc](https://github.com/coin-or/Cbc/releases)
 
 ## Getting Started
 Four notebooks are provided to get you started with this package:

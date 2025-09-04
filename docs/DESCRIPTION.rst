@@ -8,14 +8,21 @@ Introduction
 ============
 
 Some generation models are already implemented within chronix2grid as examples for other model implementation.
-This chapter describes the methods they include and how to set their configuration
+This chapter describes the methods they include and how to set their configuration.
 
 .. _correlated-noise:
 
-General inputs
+Inputs
 ===============
+Inside the input folder, all necessary requirements and information for chronics generation must be stored in a subfolder named "generation". This subfolder is structured into two categories:
 
-In *params.json* there are some settings concerning the whole generation process
+* **patterns** data used as reference to implement pattern-based methods (e.g. *load_weekly_pattern.csv*) 
+* **"your case environment"** data regarding the environment characteristics and customizable parameters
+
+General inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In *params.json* there are some settings concerning the whole generation process:
 
 * **dt** the time resolution of the final chronics that will be modeled.
 * **planned_std** standard deviation of noise for the forecasted chronics (e.g. *load_p_forecasted.csv.bz2* which correspond to non-exact planned chronics.
@@ -32,22 +39,36 @@ They are based on:
 * A coarse 3-dimensional mesh (x,y,t) with independent noise
 * The spatial and temporal interpolation of this noise at the specific location of generators and specific moments of time
 
-In *params_res.json* and *params_load.json* you can find all the required parameter for this correlated noise generation, which can be set separately between load and renewable production generation:
+In *params_res.json* and *params_load.json* you can find all the required parameter for this correlated noise generation, which can be set separately between load and renewable production generation, providing the ability to use meshes with varying characteristics and precision:
 
 * **Lx**, **Ly** the total length of the mesh
 * **dx_corr**, **dy_corr** the granularity of the coarse mesh. it represents the distance at which we consider that spatial phenomenons are independent
-* **solar_corr**, **short_wind_corr**, **medium_wind_corr**, **long_wind_corr** and **temperature_corr** which define the coarse time resolution for each type of noise
+* **solar_corr**, **short_wind_corr**, **medium_wind_corr**, **long_wind_corr** (renewable) and **temperature_corr** (load) which define the coarse time resolution for each type of noise
+
 
 Spatial correlation
 """"""""""""""""""""""""
 
-For each coarse time step t, a 2-dimensional coarse mesh is built.
+For each coarse time step t, a 2-dimensional coarse mesh is built
 At each node (x,y,t) an independent random gaussian noise :math:`N(0,1)` is computed
 
-Then a spatial interpolation is made at the specific location (x,y) of the generator,
-weighted by the distance ot its nearest neighbour in the mesh
+This mesh ensures that each network node (generator or load) is associated with its four nearest mesh neighbors. Thus, spatial interpolation is performed at the specific (x,y) location of the network node, weighted inversely by the distance of the four surrounding points
 
-.. image:: ../pictures/spatial_correlation.png
+.. image:: ../pictures/mesh_v2-removebg-preview.png
+
+Therefore, for each network node located at x,y
+
+.. math:: w_\text{k} = \frac{1}{d_\text{k}}, for k ∈ [1,4]
+
+.. math:: GenNoise(x,y) = \frac{\sum\limits_{k=1}^{4} w_\text{k} \cdot N_\text{k}}{\sum\limits_{k=1}^{4} w_\text{k}}
+
+
+Where: 
+
+* **Generator(x,y)** is the location of the network node where noise is interpolated 
+* **d1**, **d2**, **d3**, **d4** are the distances to the four nearest mesh nodes
+* :math:`w_\text{k}` is the weight of the corresponding node, ensuring closer nodes have a higher influence
+* :math:`NodeNoise_\text{k}` is the independent Gaussian noise generated at each neighboring mesh node 
 
 
 Temporal correlation
@@ -55,7 +76,7 @@ Temporal correlation
 
 Then a temporal auto-correlation structure is achieved. For each category, we go from
 resolution **[category]_corr** (at which noises have been generated independently in time)
-to resolution **dt** thanks to spline interpolation
+to resolution **dt** thanks to spline interpolation (linear, quadratic, cubic)
 
 Solar generation
 ^^^^^^^^^^^^^^^^^^
@@ -67,10 +88,20 @@ For solar generation, some additional parameters are provided:
     * **solar_corr** - resolution of temporal autocorrelation in noise (see :ref:`correlated-noise`)
     * **std_solar_noise** - standard deviation of the spatial and temporal correlated noise. It will be marked as :math:`\sigma`
     * **smooth_dist** - standard deviation of additional centered gaussian noise (will be normalized by Pmax). It will be marked as :math:`s`
+    * **scale_solar_coord_for_correlation** - expands the noise mesh to accommodate a scaling of solar generator coordinates, spreading the generator nodes and reducing correlation between them
+    * **solar_night_hour** - time interval during which solar generation is set to zero, regardless of the season.
 
 For each solar generator located at x, y and with max power generation of :math:`P_\text{max}`
 
-.. math:: prod_t(x,y) = P_\text{max} * smooth(pattern_t * (0.75+\sigma f_t^\text{solar}(x,y)) + n_s(x,y,t,P_\text{max}))
+.. math:: prod_t(x,y) = P_\text{max} * smooth(pattern_t * (0.75+\sigma f_t^\text{solar}(x,y)))
+
+
+
+
+.. _n_s(x,y,t,P_\text{max})
+
+
+
 
 Where :
 
@@ -88,7 +119,7 @@ interval :math:`[0,1]`. Finally, this normal production is rescaled to :math:`P_
    :scale: 50 %
    :alt: Solar year example
 
-   Example of generated solar chronic across year 2012. Pmax of the solar farm is 37.3 MW. :math:`solar_\text{corr} = 20 minutes` - :math:`smooth_\text{dist} = 0.001` - :math:`\sigma = 0.4`
+   Example of generated solar chronic (in MW) across year 2012. Pmax of the solar farm is 37.3 MW. :math:`solar_\text{corr} = 20 minutes`; :math:`smooth_\text{dist} = 0.001`; :math:`\sigma = 0.4`
 
 .. figure:: ../pictures/solar_gen_10_5_chronic_example_week.PNG
    :scale: 50 %
@@ -140,7 +171,7 @@ Where:
    :scale: 50 %
    :alt: Wind year example
 
-   Example of generated wind chronic across year 2012. Pmax of the wind farm is 67.2 MW. :math:`wind_\text{corr} = 300 min, 1440 min, 20160 min` - :math:`smooth_\text{dist} = 0.001` - :math:`\sigma = 0.02, 0.15, 0.15`
+   Example of generated wind chronic (in MW) across year 2012. Pmax of the wind farm is 67.2 MW. :math:`wind_\text{corr} = 300 min, 1440 min, 20160 min`; :math:`smooth_\text{dist} = 0.001`; :math:`\sigma = 0.02, 0.15, 0.15`
 
 .. figure:: ../pictures/wind_gen_111_59_chronic_example_week.PNG
    :scale: 50 %
@@ -179,7 +210,7 @@ Where :math:`f_t^\text{temperature}(x,y)` is the temperature correlated noise (s
    :scale: 50 %
    :alt: Load year example
 
-   Example of generated load chronic across year 2012 in region R3. Pmax of the load is 77.1 MW. :math:`temperature_\text{corr} = 400 min` - :math:`\sigma = 0.06`
+   Example of generated load chronic (in MW) across year 2012 in region R3. Pmax of the load is 77.1 MW. :math:`temperature_\text{corr} = 400 min`; :math:`\sigma = 0.06`
 
 .. figure:: ../pictures/load_87_70_chronic_example_week.PNG
    :scale: 50 %
@@ -250,13 +281,13 @@ Then it picks as many generators chronics as needed in the grid. An error is ret
    :scale: 50 %
    :alt: solar 1 week
 
-   Generated solar production - 1-week example on one generator
+   Generated solar production (in MW) - 1-week example on one generator
 
 .. figure:: ../pictures/gan/wind_1week.PNG
    :scale: 50 %
    :alt: wind 1 week
 
-   Generated wind production - 1-week example on one generator
+   Generated wind production (in MW) - 1-week example on one generator
 
 
 .. warning::
