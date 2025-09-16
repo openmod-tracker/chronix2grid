@@ -26,6 +26,13 @@ See the documentation at https://chronix2grid.readthedocs.io/en/latest/
 *   Python >= 3.9
 
 #### Step 1: Create a virtual environment
+With a regular environment:
+```comandline
+pip3 install -U virtualenv
+python3 -m virtualenv venv_chronix2grid
+```
+
+If you have anaconda:
 ```commandline
 conda create -n venv_chronix2grid python=3.9
 conda activate venv_chronix2grid
