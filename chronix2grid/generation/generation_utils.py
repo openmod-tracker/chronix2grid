@@ -170,6 +170,7 @@ def updated_time_parameters_with_timestep(time_parameters, timestep):
             time_parameters['end_date'] - time_parameters['start_date']
         ).total_seconds() // 60
     )
+    #input("Press enter to continue...")
     return time_parameters
 
 
@@ -237,8 +238,10 @@ def read_all_configurations(weeks, start_date, case, input_folder, output_folder
     dispath_config_manager.validate_configuration()
     params_opf = dispath_config_manager.read_configuration()
 
+    #input("Press enter to continue...")
     return (year, params, loads_charac, prods_charac, load_weekly_pattern,
             solar_pattern, params_opf)
+
 
 
 def folder_name_pattern(base_name, n_scenarios):

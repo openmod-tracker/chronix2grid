@@ -9,6 +9,8 @@
 import os
 import warnings
 
+import json
+
 import pandas as pd
 
 from chronix2grid import constants
@@ -340,61 +342,166 @@ class GeneratorBackend:
 
         return params_dict,prods_charac,loads_charac
 
-    def get_config_managers(self,input_folder,case,output_folder,mode):
+    # def get_config_managers(self,input_folder,case,output_folder,mode):
+    #     """
+    #       Function to load config_managers for each activated mode in 'LRTD' as well as the general config manager
+
+    #       Parameters
+    #       ----------
+    #       case: ``str``
+    #           name of case to study (must be a folder within input_folder)
+    #       n_scenarios: ``int``
+    #           number of desired scenarios to generate for the same timescale
+    #       input_folder: ``str``
+    #           path of folder containing inputs
+    #       output_folder: ``str``
+    #           path where outputs will be written (intermediate folder case/year/scenario will be used)
+    #       mode: ``str``
+    #           options to launch certain parts of the generation process : L load R renewable T thermal D Loss
+
+    #       Returns
+    #       -------
+    #       config_manager_dict: ``dict``
+    #           config managers for each activated mode 'L','R','T','D' and general config manager at 'G'
+    #       """
+    #     config_manager_dict=dict()
+
+    #     general_config_manager = self.general_config_manager(
+    #         name="Global Generation",
+    #         root_directory=input_folder,
+    #         input_directories=dict(case=case),
+    #         required_input_files=dict(case=['loads_charac.csv','prods_charac.csv','params.json']),
+    #         output_directory=output_folder
+    #     )
+    #     general_config_manager.validate_configuration()
+    #     config_manager_dict['G']=general_config_manager
+    #     if 'L' in mode:
+    #         load_config_manager = self.load_config_manager(
+    #             name="Loads Generation",
+    #             root_directory=input_folder,
+    #             input_directories=dict(case=case, patterns='patterns'),
+    #             required_input_files=dict(case=['loads_charac.csv', 'params_load.json'],
+    #                                       patterns=['load_weekly_pattern.csv']),
+    #             output_directory=output_folder
+    #         )
+    #         load_config_manager.validate_configuration()
+    #         config_manager_dict['L']=load_config_manager
+    #         #input("Press enter to continue...")
+
+    #     if 'R' in mode:
+    #         res_config_manager = self.res_config_manager(
+    #             name="Renewables Generation",
+    #             root_directory=input_folder,
+    #             input_directories=dict(case=case, patterns='patterns'),
+    #             required_input_files=dict(case=['prods_charac.csv', 'params_res.json'],
+    #                                       patterns=['solar_pattern.npy']),
+    #             output_directory=output_folder
+    #         )
+    #         #input("Press enter to continue...")
+    #         config_manager_dict['R']=res_config_manager
+
+    #     if 'T' in mode:
+    #         dispath_config_manager = self.dispatch_config_manager(
+    #             name="Dispatch",
+    #             root_directory=input_folder,
+    #             output_directory=output_folder,
+    #             input_directories=dict(params=case),
+    #             required_input_files=dict(case=['prods_charac.csv', 'params_res.json'],params=['params_opf.json'])
+    #         )
+    #         dispath_config_manager.validate_configuration()
+    #         config_manager_dict['T']=dispath_config_manager
+    #         #input("Press enter to continue...")
+
+    #     if 'D' in mode:
+    #         loss_config_manager = self.loss_config_manager(
+    #             name="Loss",
+    #             root_directory=input_folder,
+    #             output_directory=output_folder,
+    #             input_directories=dict(params=case),
+    #             required_input_files=dict(params=['params_loss.json'])
+    #         )
+    #         config_manager_dict['D']=loss_config_manager
+    #         #input("Press enter to continue...")
+
+    #     return config_manager_dict
+
+    def get_config_managers(self, input_folder, case, output_folder, mode):
         """
-          Function to load config_managers for each activated mode in 'LRTD' as well as the general config manager
+        Function to load config_managers for each activated mode in 'LRTD' as well as the general config manager
+        """
+        config_manager_dict = dict()
 
-          Parameters
-          ----------
-          case: ``str``
-              name of case to study (must be a folder within input_folder)
-          n_scenarios: ``int``
-              number of desired scenarios to generate for the same timescale
-          input_folder: ``str``
-              path of folder containing inputs
-          output_folder: ``str``
-              path where outputs will be written (intermediate folder case/year/scenario will be used)
-          mode: ``str``
-              options to launch certain parts of the generation process : L load R renewable T thermal D Loss
-
-          Returns
-          -------
-          config_manager_dict: ``dict``
-              config managers for each activated mode 'L','R','T','D' and general config manager at 'G'
-          """
-        config_manager_dict=dict()
-
+        # General configuration for the generation process
         general_config_manager = self.general_config_manager(
             name="Global Generation",
             root_directory=input_folder,
             input_directories=dict(case=case),
-            required_input_files=dict(case=['loads_charac.csv','prods_charac.csv','params.json']),
+            required_input_files=dict(case=['loads_charac.csv', 'prods_charac.csv', 'params.json']),
             output_directory=output_folder
         )
         general_config_manager.validate_configuration()
-        config_manager_dict['G']=general_config_manager
+        config_manager_dict['G'] = general_config_manager
+
+        # Loading data for each mode
         if 'L' in mode:
             load_config_manager = self.load_config_manager(
                 name="Loads Generation",
                 root_directory=input_folder,
                 input_directories=dict(case=case, patterns='patterns'),
                 required_input_files=dict(case=['loads_charac.csv', 'params_load.json'],
-                                          patterns=['load_weekly_pattern.csv']),
+                                        patterns=['load_weekly_pattern.csv']),
                 output_directory=output_folder
             )
             load_config_manager.validate_configuration()
-            config_manager_dict['L']=load_config_manager
+            config_manager_dict['L'] = load_config_manager
 
         if 'R' in mode:
+
+
+            # detect whether zonal solar patterns should be used
+            use_zonal = False
+            params_res_path = os.path.join(input_folder, case, 'params_res.json')
+            try:
+                with open(params_res_path, 'r') as f:
+                    use_zonal = json.load(f).get('use_zonal_solar_pattern', False)
+            except FileNotFoundError:
+                # params_res.json will be validated later
+                pass
+
+            # choose required input files based on mode
+            # zonal mode: require solar_coord.json in case folder, no .npy in patterns
+            # legacy mode: require solar_pattern.npy in patterns folder
+            if use_zonal:
+                files_case    = ['prods_charac.csv', 'params_res.json', 'solar_coord.json']
+                files_pattern = []
+            else:
+                files_case    = ['prods_charac.csv', 'params_res.json']
+                files_pattern = ['solar_pattern.npy']
+
+            # instantiate the ResConfigManager with the correct file requirements
             res_config_manager = self.res_config_manager(
                 name="Renewables Generation",
                 root_directory=input_folder,
                 input_directories=dict(case=case, patterns='patterns'),
-                required_input_files=dict(case=['prods_charac.csv', 'params_res.json'],
-                                          patterns=['solar_pattern.npy']),
+                required_input_files=dict(
+                    case=files_case,
+                    patterns=files_pattern
+                ),
                 output_directory=output_folder
             )
-            config_manager_dict['R']=res_config_manager
+            res_config_manager.validate_configuration()
+            config_manager_dict['R'] = res_config_manager
+
+            # in zonal mode, load solar_coord.json and inject coordinates into the prods_charac dataframe
+            if use_zonal:
+                coords_path = os.path.join(input_folder, case, 'solar_coord.json')
+                with open(coords_path, 'r') as f:
+                    coords = json.load(f)
+                params_res, prods_charac = res_config_manager.read_configuration()
+                prods_charac['coordinates'] = prods_charac['zone'].map(coords)
+                res_config_manager.prods_charac = prods_charac
+
+
 
         if 'T' in mode:
             dispath_config_manager = self.dispatch_config_manager(
@@ -402,10 +509,10 @@ class GeneratorBackend:
                 root_directory=input_folder,
                 output_directory=output_folder,
                 input_directories=dict(params=case),
-                required_input_files=dict(case=['prods_charac.csv', 'params_res.json'],params=['params_opf.json'])
+                required_input_files=dict(case=['prods_charac.csv', 'params_res.json'], params=['params_opf.json'])
             )
             dispath_config_manager.validate_configuration()
-            config_manager_dict['T']=dispath_config_manager
+            config_manager_dict['T'] = dispath_config_manager
 
         if 'D' in mode:
             loss_config_manager = self.loss_config_manager(
@@ -415,7 +522,13 @@ class GeneratorBackend:
                 input_directories=dict(params=case),
                 required_input_files=dict(params=['params_loss.json'])
             )
-            config_manager_dict['D']=loss_config_manager
+            config_manager_dict['D'] = loss_config_manager
 
+        #print("Verificando as primeiras linhas de prods_charac:")
+        #print(prods_charac[['zone', 'coordinates']].head())  # Exibe as zonas e as coordenadas associadas
+
+        #input("Pressione Enter para continuar...")
+        # print(">>> R prods_charac sample:")
+        # print(config_manager_dict)
+        # input("Pressione Enter para continuar...")
         return config_manager_dict
-

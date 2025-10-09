@@ -275,6 +275,8 @@ class ResConfigManager(ConfigManager):
             * *smoothdist* - independent noise level
             * *year_solar_pattern* - year of provided solar pattern
 
+        Optionally injects per-zone coordinates from solar_coord.json
+
         Returns
         -------
         params_res: ``dict``
@@ -307,7 +309,25 @@ class ResConfigManager(ConfigManager):
                 os.path.join(self.root_directory, self.input_directories['case'],
                              'prods_charac.csv'),
                 sep=';')
+            
 
+###############################                 ##########################################              
+###############################                 ##########################################   
+
+        coords_path = os.path.join(
+            self.root_directory,
+            self.input_directories['case'],
+            'solar_coord.json'
+        )
+        if os.path.isfile(coords_path):
+            with open(coords_path, 'r') as f:
+                coords_by_zone = json.load(f)
+            prods_charac['coordinates'] = prods_charac['zone'].map(coords_by_zone)  # map each zone in prods_charac to its [lat, lon] pair
+
+###############################                 ##########################################      
+###############################                 ##########################################   
+# 
+#         
         return params, prods_charac
 
     def read_specific(self):
