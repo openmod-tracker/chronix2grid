@@ -83,17 +83,19 @@ Solar generation
 
 For solar generation, some additional parameters are provided:
 
-* A yearly smooth solar pattern file at .npy format. It will be marked as :math:`pattern_t` and it doesn't depend on x and y
+* A yearly solar pattern can be provided as a .npy file, or per generator region r, specified in a .json file containing the coordinates of each region. In both cases, the pattern is independent of (x, y) and it will be marked as :math:pattern_t (see section :ref:Patterns)
 * In *params_res.json*:
     * **solar_corr** - resolution of temporal autocorrelation in noise (see :ref:`correlated-noise`)
     * **std_solar_noise** - standard deviation of the spatial and temporal correlated noise. It will be marked as :math:`\sigma`
     * **smooth_dist** - standard deviation of additional centered gaussian noise (will be normalized by Pmax). It will be marked as :math:`s`
     * **scale_solar_coord_for_correlation** - expands the noise mesh to accommodate a scaling of solar generator coordinates, spreading the generator nodes and reducing correlation between them
-    * **solar_night_hour** - time interval during which solar generation is set to zero, regardless of the season.
+    * **solar_night_hour** - time interval during which solar generation is set to zero, regardless of the season
+    * **force_solar_zero** - number of hours required to set solar generation to zero after reaching 5% of it's maximum value
+    * **use_zonal_solar_pattern** - option to switch between different approaches for applying the pattern.   
 
-For each solar generator located at x, y and with max power generation of :math:`P_\text{max}`
+For each solar generator located at x, y, r and with max power generation of :math:`P_\text{max}`
 
-.. math:: prod_t(x,y) = P_\text{max} * smooth(pattern_t * (0.75+\sigma f_t^\text{solar}(x,y)))
+.. math:: prod_t(x,y) = P_\text{max} * smooth(pattern_t(r) * (0.75+\sigma f_t^\text{solar}(x,y)))
 
 
 
@@ -126,6 +128,22 @@ interval :math:`[0,1]`. Finally, this normal production is rescaled to :math:`P_
    :alt: Solar week example
 
    Focus on one week in summer
+
+Single pattern profile
+""""""""""""""""""""""""
+A single normalized solar generation curve is applied to all regions. The curve is smooth throughout the year, with a well-defined peak precisely at mid-year. The profile is provided as a .npy file included in the input set.
+
+.. figure:: ../pictures/unique_solarpattern.png
+
+Example of normalized solar pattern 
+
+Per-region pattern profile
+""""""""""""""""""""""""
+Using PVGIS tools, a realistic solar profile is obtained for each region associated with a group of generators. A .json file provides the coordinates of each region (latitude, longitude), and the PVGIS API extracts an annual curve based on the average historical solar generation of that area, where a four-year data interval (preceding the specified start year or covering the full available period) is averaged to smooth abrupt spikes and highlight the underlying seasonal trend.
+
+.. figure:: ../pictures/pvgis_solarpattern.png
+
+Example of normalized solar pattern from PVGIS. Region: :math:`latitude = 50.162527; longitude = 2.5986`
 
 Wind generation
 ^^^^^^^^^^^^^^^^^
