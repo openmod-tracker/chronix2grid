@@ -35,5 +35,6 @@ def main(generator: GeneratorBackend, case, n_scenarios, input_folder, output_fo
     -------
 
     """
+    #input("Press enter to continue...")    
     return generator.run(case, n_scenarios, input_folder, output_folder, scen_names, time_params, mode, scenario_id, seed_for_loads, seed_for_res,
                          seed_for_disp)

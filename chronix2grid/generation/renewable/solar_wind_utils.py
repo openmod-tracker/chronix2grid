@@ -15,6 +15,11 @@ from scipy.interpolate import interp1d
 from .. import generation_utils as utils
 import chronix2grid.constants as cst
 
+import plotly.express as px
+import requests
+from io import StringIO
+
+
 def compute_wind_series(prng, locations, Pmax, long_noise, medium_noise,
                         short_noise, params, smoothdist, add_dim,
                         return_ref_curve=False,
@@ -69,9 +74,16 @@ def compute_wind_series(prng, locations, Pmax, long_noise, medium_noise,
     return wind_series, 1e-1 * np.exp(4 * (0.7 + 0.3 * seasonal_pattern) * 0.3)
 
 
-def compute_solar_series(prng, locations, Pmax, solar_noise, params,
-                         solar_pattern, smoothdist, time_scale,
-                         add_dim, scale_solar_coord_for_correlation=None,
+def compute_solar_series(prng, 
+                         locations, 
+                         Pmax, 
+                         solar_noise, 
+                         params, 
+                         smoothdist,
+                         solar_pattern, 
+                         time_scale,
+                         add_dim, 
+                         scale_solar_coord_for_correlation=None,
                          return_ref_curve=False,
                          tol=0.):
     # NB tol is set to 0.0 for legacy behaviour, otherwise tests do not pass, but this is a TERRIBLE idea.
@@ -83,6 +95,7 @@ def compute_solar_series(prng, locations, Pmax, solar_noise, params,
 
     # Compute solar pattern
     solar_pattern = compute_solar_pattern(params, solar_pattern, tol=tol)
+
 
     # Compute solar time series
     std_solar_noise = float(params['std_solar_noise'])
@@ -108,19 +121,40 @@ def compute_solar_series(prng, locations, Pmax, solar_noise, params,
 
 def compute_solar_pattern(params, solar_pattern, tol=0.0):
     """
-    Loads a typical hourly pattern, and interpolates it to generate
-    a smooth solar generation pattern between 0 and 1
+    Generate a smooth solar curve between 0 and 1 from an hourly profile.
 
-    # NB tol is set to 0.0 for legacy behaviour, otherwise tests do not pass, but this is a TERRIBLE idea.
-    
-    Input:
-        computation_params: (dict) Defines the mesh dimensions and
-            precision. Also define the correlation scales
-        interpolation_params: (dict) params of the interpolation
+    If params.get('use_zonal_solar_pattern', False) is True, 
+    treats `solar_pattern` as raw PVGIS data (6×8760h), averages 
+    and normalizes it; otherwise uses `solar_pattern` as a single 
+    8760h legacy profile.
 
-    Output:
-        (np.array) A smooth solar pattern
+    Repeats and interpolates to cover [start_date, end_date] at dt-minute steps,
+    then can apply night-time and zero-threshold rules (tol, solar_night_hour, etc.).
+
+    Returns a 1D numpy array of length (T/dt + 1) with values in [0,1].
     """
+
+    # If it is used solar patterns by zone
+    if params.get('use_zonal_solar_pattern', False):
+        
+        power_values = solar_pattern
+
+        # enforce exactly 8760 hours per year, discarding any extra data
+        n_years = 4
+        hours_per_year = 8760  # standard year length: 365 days * 24 hours
+
+        # ensure exactly hours_per_year hours per year (truncate any extra data)
+        total_values = hours_per_year * n_years
+        if len(power_values) < total_values:
+            raise ValueError(f"Insufficient data ({len(power_values)}) for {n_years} full years of {hours_per_year} hours.")
+        power_values = power_values[:total_values]
+
+        power_reshaped = power_values.reshape((n_years, hours_per_year))
+        average_pattern = power_reshaped.mean(axis=0)
+
+        # normalize to [0, 1]
+        solar_pattern = (average_pattern - average_pattern.min()) / (average_pattern.max() - average_pattern.min())
+
 
     start_year = pd.to_datetime(str(params['start_date'].year) + '-01-01', format='%Y-%m-%d')
     end_min = int(pd.Timedelta(params['end_date'] - start_year).total_seconds() // 60)
@@ -146,6 +180,11 @@ def compute_solar_pattern(params, solar_pattern, tol=0.0):
     output = f2(t_inter)
     output = output * (output > 0)
     output[output < tol] = 0.
+
+
+
+
+
     if "solar_night_hour" in params:
         # addition: force the solar at 0 at night
         dts = [params['start_date'] + i * pd.Timedelta(minutes=params['dt']) for i in range(t_inter.shape[0])]
@@ -198,7 +237,65 @@ def compute_solar_pattern(params, solar_pattern, tol=0.0):
         min_hour_seen_non_zero = np.min(dts_hours[output >= threshold_zero])
         min_hour_seen_non_zero -= int(params["force_solar_zero"])
         output[dts_hours <= min_hour_seen_non_zero] = 0.
+
+
     return output
+
+############# Solar Patterns by Zone #######################################################################
+
+def compute_solar_patterns_by_zone(prods_charac, params, peak_power=1.0):
+    """
+    For each solar zone in prods_charac, fetch raw hourly PVGIS data
+    (over a 6-year span ending in params['start_date'].year) and store it
+    as a 1D numpy array, using the real latitude/longitude
+    from prods_charac['coordinates'].
+    """
+    solar_data = {}
+    loss     = params.get('pv_loss', 14.0)
+    end_year = params['start_date'].year
+
+    if end_year > 2023: #considering the upper limit of pvgis solar radiation database [2005 - 2023]
+        end_year = 2023
+    
+    if end_year < 2011: #considering the lower limit of pvgis solar radiation database [2005 - 2023]
+        end_year = 2011
+    
+    start_year = end_year - 4
+
+    # only zones that actually have solar
+    solar_zones = prods_charac.loc[prods_charac['type']=='solar','zone'].unique()
+
+    for zone in solar_zones:
+        # pull the lat,lon you loaded from solar_coord.json
+        #coordinates is [lat, lon]
+        lat, lon = prods_charac.loc[
+            prods_charac['zone']==zone,'coordinates'
+        ].iat[0]
+
+        # validate
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError(f"Invalid lat/lon for zone {zone}: {(lat,lon)}")
+
+        url = (
+            f"https://re.jrc.ec.europa.eu/api/seriescalc"
+            f"?lat={lat}&lon={lon}"
+            f"&startyear={start_year}&endyear={end_year}"
+            f"&pvcalculation=1&peakpower={peak_power}"
+            "&pvtechchoice=crystSi"
+            f"&loss={loss}&trackingtype=0&optimalangles=1"
+            "&outputformat=basic"
+        )
+
+        resp = requests.get(url)
+        resp.raise_for_status()
+
+        df = pd.read_csv(StringIO(resp.text), header=None, skiprows=2)
+        solar_data[zone] = df[1].astype(float).values
+
+
+    return solar_data
+
+####################################################################################
 
 def smooth(x, alpha=0.5, beta=None):
     """

@@ -36,7 +36,7 @@ def get_add_dim(params, prods_charac):
     return add_dim
 
 
-def main(scenario_destination_path, seed, params, prods_charac, solar_pattern,
+def main(scenario_destination_path, seed, params, prods_charac, base_solar_pattern,
          write_results=True, return_ref_curve=False, return_prng=False,
          tol_zero=0.):
     """
@@ -76,19 +76,19 @@ def main(scenario_destination_path, seed, params, prods_charac, solar_pattern,
         start=params['start_date'],
         end=params['end_date'],
         freq=str(params['dt']) + 'min')
+    
 
-    # Solar_pattern management
-    # Extra value (resolution 1H, 8761)
-    solar_pattern = solar_pattern[:-1]
 
-    # Realistic first day of year: have to roll the pattern to fit first day of week
-    # start_date = params['start_date']
-    # start_date_day = start_date.weekday()
-    # pattern_start_date = pd.Timestamp("01-01-"+str(int(params['year_solar_pattern'])))
-    # pattern_start_date_day = pattern_start_date.weekday()
-    # days_to_shift = start_date_day - pattern_start_date_day
-    # steps_to_shift = int(days_to_shift * 60 * 24 / params['dt']) # Solar pattern starts on a monday at 0h + timestep
-    # solar_pattern = np.roll(solar_pattern, steps_to_shift)
+
+    if params.get('use_zonal_solar_pattern', False):
+        # Extracts one distinct solar curve per zone
+        solar_pattern = swutils.compute_solar_patterns_by_zone(prods_charac, params)
+
+    else:
+        # Solar_pattern management
+        # Extra value (resolution 1H, 8761)
+        solar_pattern = base_solar_pattern[:-1]
+
 
     # Generate GLOBAL temperature noise
     print('Computing global auto-correlated spatio-temporal noise for sun and wind...')
@@ -110,6 +110,13 @@ def main(scenario_destination_path, seed, params, prods_charac, solar_pattern,
     for name in prods_charac['name']:
         mask = (prods_charac['name'] == name)
         if prods_charac[mask]['type'].values == 'solar':
+
+            if params.get('use_zonal_solar_pattern', False):
+                zone = prods_charac.loc[mask, 'zone'].iat[0]
+                pattern = solar_pattern[zone]
+            else:
+                pattern = solar_pattern
+
             locations = [prods_charac[mask]['x'].values[0], prods_charac[mask]['y'].values[0]]
             Pmax = prods_charac[mask]['Pmax'].values[0]
             tmp_ = swutils.compute_solar_series(
@@ -117,7 +124,9 @@ def main(scenario_destination_path, seed, params, prods_charac, solar_pattern,
                 locations,
                 Pmax,
                 solar_noise,
-                params, solar_pattern, smoothdist,
+                params, 
+                smoothdist,
+                solar_pattern=pattern, 
                 time_scale=params['solar_corr'],
                 add_dim=add_dim,
                 scale_solar_coord_for_correlation=scale_solar_coord_for_correlation,

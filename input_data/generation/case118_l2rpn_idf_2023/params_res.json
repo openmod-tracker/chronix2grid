@@ -17,10 +17,8 @@
   "mean_solar_pattern": 1.0,
   "wind_corr": 400,
   "solar_night_hour": [23, 0, 1, 2, 3, 4],
-  "force_solar_zero": 1
-
-  
-  
+  "force_solar_zero": 2,
+  "use_zonal_solar_pattern": true
 
 }
 
