@@ -287,7 +287,10 @@ class ResConfigManager(ConfigManager):
             params = json.load(params_json)
         for key, value in params.items():
             try:
-                params[key] = float(value)
+                if isinstance(value, list):
+                    params[key] = value
+                else:
+                    params[key] = float(value)
             except ValueError:
                 params[key] = pd.to_datetime(value, format='%Y-%m-%d')
 

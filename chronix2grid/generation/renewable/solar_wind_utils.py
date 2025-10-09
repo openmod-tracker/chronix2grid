@@ -46,7 +46,7 @@ def compute_wind_series(prng, locations, Pmax, long_noise, medium_noise,
     t = np.linspace(0, params['T'], Nt_inter, endpoint=True)
     start_min = int(
         pd.Timedelta(params['start_date'] - pd.to_datetime('2018-01-01', format='%Y-%m-%d')).total_seconds() // 60)
-    seasonal_pattern = np.cos((2 * np.pi / (365 * 24 * 60)) * (t - 30 * 24 * 60 - start_min))
+    seasonal_pattern = np.cos((2 * np.pi / (365 * 24 * 60)) * (t - 30 * 24 * 60 + start_min))
 
     # Combine signals
     std_short_wind_noise = float(params['std_short_wind_noise'])
@@ -93,8 +93,8 @@ def compute_solar_series(prng, locations, Pmax, solar_noise, params,
         mean_solar_pattern = 0.75
         
     signal = solar_pattern * (mean_solar_pattern + std_solar_noise * final_noise)
-    #signal += prng.uniform(0, smoothdist/Pmax, signal.shape) #to be revised: since smmothdist/PMax is very small, the added noise compared to the previous sinal was unsignificant
-    #signal += np.random.uniform(0, smoothdist / Pmax, signal.shape) #older version - to be removed
+    signal += prng.uniform(0, smoothdist, signal.shape) #to be revised: since smmothdist/PMax is very small, the added noise compared to the previous sinal was unsignificant
+    #signal += np.random.uniform(0, smoothdist, signal.shape) #older version - to be removed
     # signal[signal > 1] = 1
     signal[signal < tol] = 0.
     signal = smooth(signal)
@@ -187,6 +187,9 @@ def compute_solar_pattern(params, solar_pattern, tol=0.0):
     if "force_solar_zero" in params:
         # another heuristic to cap the solar at 0.0 at "night"
         # when the solar is at 5% of its max value, then 1h after it it should be 0.
+
+        dts = [params['start_date'] + i * pd.Timedelta(minutes=params['dt']) for i in range(t_inter.shape[0])]
+        dts_hours = np.array([el.hour for el in dts])
         threshold_zero = output.max() * 0.05
         max_hour_seen_non_zero = np.max(dts_hours[output >= threshold_zero])
         max_hour_seen_non_zero += int(params["force_solar_zero"])

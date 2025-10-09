@@ -19,7 +19,7 @@ def compute_loads(loads_charac, temperature_noise, params, load_weekly_pattern,
                   return_ref_curve=False,
                   use_legacy=True):
     #6  # this is only TRUE if you simulate 2050 !!! formula does not really work
-    
+
     # Compute active part of loads
     weekly_pattern = load_weekly_pattern['test'].values
     if use_legacy:
@@ -72,8 +72,10 @@ def get_seasonal_pattern(params):
     nb_sec_per_day =  24. * 60. * 60.
     nb_sec_per_year = (365. * nb_sec_per_day)
     year_pattern = 2. * np.pi / nb_sec_per_year
-    seasonal_pattern = 1.5 / 7. * np.cos(year_pattern * (t + start_min - 45 * nb_sec_per_day))  # min of the load is 15 of February so 45 days after beginning of year
+    seasonal_pattern = 1.5 / 7. * np.cos(year_pattern * (t + start_min - 30 * nb_sec_per_day))  # a negative 30-day offset identifies late July to early August as the period of lowest energy consumption
+
     seasonal_pattern += 5.5 / 7.
+
     return seasonal_pattern
 
 

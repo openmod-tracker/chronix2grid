@@ -6,7 +6,7 @@
   "dispatch_by_carrier": false,
   "ramp_mode": "hard",
   "pyomo": false,
-  "solver_name": "cbc",
+  "solver_name": "highs",
   "slack_name": "gen_68_37",
   "slack_pmin": 40.0,
   "slack_pmax": 300.0,
@@ -14,5 +14,10 @@
   "PmaxErrorCorrRatio": 0.9,
   "RampErrorCorrRatio": 0.9,
   "renewable_in_opf": true,
-  "hydro_ramp_reduction_factor": 1.3
+  "hydro_ramp_reduction_factor": 1.3,
+  "loss_grid2op_simulation": false,
+  "idxSlack":37,
+  "nameSlack": "gen_68_37",
+  "early_stopping_mode": false,
+  "agent_type": "reco"
 }
